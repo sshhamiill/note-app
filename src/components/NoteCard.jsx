@@ -20,7 +20,7 @@ function NoteCard({
 
     // SAVE EDIT
 
-    function saveEdit() {
+    async function saveEdit() {
 
         if (editContent.trim() === "") {
 
@@ -40,23 +40,11 @@ function NoteCard({
         }
 
 
-        const updatedNote = {
-
-            ...note,
-
+        const saved = await updateNote(note.id, {
             title: editTitle.trim(),
-
             content: editContent.trim(),
-
-            updatedAt:
-                new Date().toISOString()
-
-        };
-
-
-        updateNote(updatedNote);
-
-        setEditing(false);
+        });
+        if (saved) setEditing(false);
 
     }
 
@@ -87,7 +75,7 @@ function NoteCard({
             <div
                 className={
                     `rounded-xl p-4 shadow
-                    ${colorClasses[note.color]}`
+                    ${colorClasses[note.color] ?? colorClasses.yellow}`
                 }
             >
 
@@ -147,7 +135,7 @@ function NoteCard({
         <div
             className={
                 `rounded-xl p-5 shadow
-                ${colorClasses[note.color]}`
+                ${colorClasses[note.color] ?? colorClasses.yellow}`
             }
         >
 
@@ -171,15 +159,14 @@ function NoteCard({
                     </p>
 
 
-                    {note.tag && (
-
-                        <span className="mt-3 inline-block rounded-full bg-white px-3 py-1 text-sm">
-
-                            #{note.tag}
-
+                    {note.tags?.map((tag) => (
+                        <span
+                            key={tag}
+                            className="mt-3 mr-2 inline-block rounded-full bg-white px-3 py-1 text-sm"
+                        >
+                            #{tag}
                         </span>
-
-                    )}
+                    ))}
 
                 </div>
 

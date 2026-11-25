@@ -16,7 +16,7 @@ function NoteForm({ notes, addNote }) {
     const [error, setError] = useState("");
 
 
-    function handleSubmit(event) {
+    async function handleSubmit(event) {
 
         event.preventDefault();
 
@@ -87,33 +87,21 @@ function NoteForm({ notes, addNote }) {
         // CREATE NOTE OBJECT
 
         const newNote = {
-
-            id: Date.now(),
-
             title: title.trim(),
-
             content: content.trim(),
-
-            color: color,
-
-            tag: tag.trim(),
-
-            createdAt:
-                new Date().toISOString(),
-
-            updatedAt:
-                new Date().toISOString(),
-
+            color,
+            tags: tag.trim() ? [tag.trim()] : [],
+            stock: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             pinned: false,
-
-            archived: false
-
+            archived: false,
         };
 
 
         // SEND NOTE TO APP
-
-        addNote(newNote);
+        const saved = await addNote(newNote);
+        if (!saved) return;
 
 
         // CLEAR FORM
@@ -203,16 +191,8 @@ function NoteForm({ notes, addNote }) {
             >
                 Add Note
             </button>
-
         </form>
     );
 }
 
 export default NoteForm;
-
-
-
-
-
-
-

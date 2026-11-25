@@ -1,340 +1,124 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useNotes } from "./NotesContext";
+import Filter from "./components/Filter";
 import NoteForm from "./components/NoteForm";
 import NoteList from "./components/NoteList";
 import SearchBar from "./components/SearchBar";
-import Filter from "./components/Filter";
+
+function LoadingSpinner() {
+    return (
+        <span
+            aria-label="Loading"
+            className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-black"
+            role="status"
+        />
+    );
+}
 
 function App() {
-    // All notes
-    const [notes, setNotes] = useState([]);
-
-    // Search text
+    const {
+        notes,
+        loading,
+        error,
+        toast,
+        createNote,
+        updateNote,
+        deleteNote,
+        toggleArchive,
+        togglePin,
+        searchNotes,
+        fetchNotes,
+    } = useNotes();
     const [search, setSearch] = useState("");
-
-    // Filter
     const [filter, setFilter] = useState("all");
-
-    // Sort
     const [sort, setSort] = useState("newest");
 
-    // Loading
-    const [loading, setLoading] = useState(true);
-
-    // LOAD NOTES FROM LOCAL STORAGE
-    useEffect(() => {
-
-        const savedNotes =
-            JSON.parse(localStorage.getItem("notes")) || [];
-
-        setNotes(savedNotes);
-
-        setLoading(false);
-
-    }, []);
-
-
-    // SAVE NOTES TO LOCAL STORAGE
-    useEffect(() => {
-
-        if (!loading) {
-
-            localStorage.setItem(
-                "notes",
-                JSON.stringify(notes)
-            );
-
-        }
-
-    }, [notes, loading]);
-
-
-    // CREATE
-    function addNote(note) {
-
-        setNotes((oldNotes) => {
-
-            return [note, ...oldNotes];
-
+    const visibleNotes = useMemo(() => {
+        const filtered = searchNotes(search).filter((note) => {
+            if (filter === "active") return !note.archived;
+            if (filter === "archived") return note.archived;
+            if (filter === "pinned") return Boolean(note.pinned) && !note.archived;
+            return true;
         });
 
-    }
-
-
-    // UPDATE
-    function updateNote(updatedNote) {
-
-        setNotes((oldNotes) => {
-
-            return oldNotes.map((note) => {
-
-                if (note.id === updatedNote.id) {
-
-                    return updatedNote;
-
-                }
-
-                return note;
-
-            });
-
+        return filtered.sort((first, second) => {
+            if (sort === "oldest") {
+                return new Date(first.createdAt) - new Date(second.createdAt);
+            }
+            if (sort === "title") return first.title.localeCompare(second.title);
+            if (sort === "color") return first.color.localeCompare(second.color);
+            return new Date(second.createdAt) - new Date(first.createdAt);
         });
-
-    }
-
-
-    // DELETE
-    function deleteNote(id) {
-
-        const answer = window.confirm(
-            "Are you sure you want to delete this note?"
-        );
-
-        if (!answer) {
-            return;
-        }
-
-        setNotes((oldNotes) => {
-
-            return oldNotes.filter((note) => {
-
-                return note.id !== id;
-
-            });
-
-        });
-
-    }
-
-
-    // PIN / UNPIN
-    function togglePin(id) {
-
-        setNotes((oldNotes) => {
-
-            return oldNotes.map((note) => {
-
-                if (note.id === id) {
-
-                    return {
-                        ...note,
-                        pinned: !note.pinned,
-                        updatedAt: new Date().toISOString()
-                    };
-
-                }
-
-                return note;
-
-            });
-
-        });
-
-    }
-
-
-    // ARCHIVE / UNARCHIVE
-    function toggleArchive(id) {
-
-        setNotes((oldNotes) => {
-
-            return oldNotes.map((note) => {
-
-                if (note.id === id) {
-
-                    return {
-                        ...note,
-                        archived: !note.archived,
-                        updatedAt: new Date().toISOString()
-                    };
-
-                }
-
-                return note;
-
-            });
-
-        });
-
-    }
-
-
-    // SEARCH + FILTER
-    let filteredNotes = notes.filter((note) => {
-
-        const searchText = search.toLowerCase();
-
-        const matchesSearch =
-            note.title.toLowerCase().includes(searchText) ||
-            note.content.toLowerCase().includes(searchText) ||
-            note.tag.toLowerCase().includes(searchText);
-
-
-        // ALL
-        if (filter === "all") {
-
-            return matchesSearch;
-
-        }
-
-
-        // ACTIVE
-        if (filter === "active") {
-
-            return matchesSearch && !note.archived;
-
-        }
-
-
-        // PINNED
-        if (filter === "pinned") {
-
-            return (
-                matchesSearch &&
-                note.pinned &&
-                !note.archived
-            );
-
-        }
-
-
-        // ARCHIVED
-        if (filter === "archived") {
-
-            return matchesSearch && note.archived;
-
-        }
-
-
-        return matchesSearch;
-
-    });
-
-
-    // SORT
-    filteredNotes.sort((a, b) => {
-
-        if (sort === "newest") {
-
-            return (
-                new Date(b.createdAt) -
-                new Date(a.createdAt)
-            );
-
-        }
-
-
-        if (sort === "oldest") {
-
-            return (
-                new Date(a.createdAt) -
-                new Date(b.createdAt)
-            );
-
-        }
-
-
-        if (sort === "title") {
-
-            return a.title.localeCompare(b.title);
-
-        }
-
-
-        if (sort === "color") {
-
-            return a.color.localeCompare(b.color);
-
-        }
-
-        return 0;
-
-    });
-
+    }, [filter, search, searchNotes, sort]);
 
     return (
+        <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6">
+            <header className="mb-8 flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">My Notes</h1>
+                    <p className="mt-1 text-gray-600">Capture your thoughts and keep them organized.</p>
+                </div>
+                {loading && <LoadingSpinner />}
+            </header>
 
-        <div className="min-h-screen bg-gray-100 p-4">
+            <NoteForm notes={notes} addNote={createNote} />
 
-            <div className="mx-auto max-w-6xl">
+            {error && (
+                <div className="mb-5 flex items-center justify-between rounded-lg bg-red-50 p-4 text-red-700" role="alert">
+                    <p>{error}</p>
+                    <button
+                        className="ml-4 font-medium underline"
+                        onClick={() => void fetchNotes()}
+                        type="button"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
 
-                <h1 className="mb-6 text-center text-3xl font-bold">
-                    My Notes
-                </h1>
-
-
-                {/* CREATE NOTE */}
-
-                <NoteForm
-                    notes={notes}
-                    addNote={addNote}
-                />
-
-
-                {/* SEARCH + FILTER */}
-
-                <div className="mb-6 flex flex-col gap-3 sm:flex-row">
-
-                    <SearchBar
-                        search={search}
-                        setSearch={setSearch}
-                    />
-
+            <section aria-label="Notes">
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row">
+                    <SearchBar search={search} setSearch={setSearch} />
                     <Filter
                         filter={filter}
                         setFilter={setFilter}
                         sort={sort}
                         setSort={setSort}
                     />
-
                 </div>
 
-
-                {/* NOTES */}
-
-                {loading ? (
-
-                    <p className="text-center">
-                        Loading notes...
-                    </p>
-
-                ) : filteredNotes.length === 0 ? (
-
-                    <div className="rounded-xl bg-white p-10 text-center shadow">
-
-                        <h2 className="text-xl font-bold">
-                            No notes found
-                        </h2>
-
-                        <p className="mt-2 text-gray-500">
-                            Create a note to get started.
-                        </p>
-
+                {loading && notes.length === 0 ? (
+                    <div className="flex items-center justify-center gap-3 py-12 text-gray-600">
+                        <LoadingSpinner />
+                        <span>Loading notes...</span>
                     </div>
-
-                ) : (
-
+                ) : visibleNotes.length ? (
                     <NoteList
-                        notes={filteredNotes}
+                        notes={visibleNotes}
                         updateNote={updateNote}
                         deleteNote={deleteNote}
                         togglePin={togglePin}
                         toggleArchive={toggleArchive}
                     />
-
+                ) : (
+                    <p className="rounded-xl bg-white p-8 text-center text-gray-600 shadow">
+                        {search || filter !== "all"
+                            ? "No notes match your search or filter."
+                            : "No notes yet. Add one above to get started."}
+                    </p>
                 )}
+            </section>
 
-            </div>
-
-        </div>
-
+            {toast && (
+                <div
+                    className="fixed bottom-5 right-5 rounded-lg bg-gray-900 px-4 py-3 text-white shadow-lg"
+                    role="status"
+                >
+                    {toast}
+                </div>
+            )}
+        </main>
     );
 }
 
 export default App;
-
-
-
-
-
-
-
